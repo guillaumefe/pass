@@ -56,10 +56,14 @@ self.onmessage = async function(e) {
   const { masterPass, user, pin, info, length } = e.data;
   if (!self.isSecureContext) return;
   const saltHex = pin ? await sha512(masterPass + pin) : await sha512(masterPass + user);
-  const saltBytes = hexToBytes(saltHex + info);
+  const saltBytes = hexToBytes(saltHex);
+  const infoBytes = new TextEncoder().encode(info);
+  const combinedSalt = new Uint8Array(saltBytes.length + infoBytes.length);
+  combinedSalt.set(saltBytes, 0);
+  combinedSalt.set(infoBytes, saltBytes.length);
   const { hash: derived } = await argon2.hash({
     pass: masterPass,
-    salt: saltBytes,
+    salt: combinedSalt,
     type: argon2.ArgonType.Argon2id,
     hashLen: 64,
     time: 3,
@@ -68,7 +72,7 @@ self.onmessage = async function(e) {
   const seedBytes = hexToBytes(derived);
   const key = await crypto.subtle.importKey('raw', seedBytes, 'HKDF', false, ['deriveBits']);
   const bits = await crypto.subtle.deriveBits(
-    { name: 'HKDF', hash: 'SHA-256', salt: saltBytes, info: new TextEncoder().encode(info) },
+    { name: 'HKDF', hash: 'SHA-256', salt: combinedSalt, info: new TextEncoder().encode(info) },
     key,
     length * 8
   );
