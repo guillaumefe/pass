@@ -18,12 +18,6 @@
       .join('');
   }
 
-  function sanitize(str) {
-    const div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
-  }
-
   async function deriveMasterKey(pass, user) {
     const pin = document.getElementById('pin').value.trim();
     const saltHex = pin ? await sha512(pass + pin) : await sha512(pass + user);
@@ -186,12 +180,12 @@ self.onmessage = async function(e) {
         const li = document.createElement('li');
         const spanDomain = document.createElement('span');
         spanDomain.className = 'domain';
-        spanDomain.innerHTML = sanitize(r.domain);
+        spanDomain.textContent = r.domain;
         li.appendChild(spanDomain);
         if (r.login) {
           const spanLogin = document.createElement('span');
           spanLogin.className = 'login';
-          spanLogin.innerHTML = sanitize(r.login);
+          spanLogin.textContent = r.login;
           li.appendChild(spanLogin);
         }
         const actions = document.createElement('div');
