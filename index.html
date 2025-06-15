@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self'; manifest-src 'self';">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: https://cdn.jsdelivr.net; worker-src blob:; style-src 'self' 'unsafe-inline'; connect-src 'self'; manifest-src 'self';">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Password Manager PWA</title>
   <link rel="manifest" href="manifest.json">
@@ -12,7 +12,6 @@
     body { margin: 0; padding: 0; font-family: sans-serif; background: var(--bg); color: var(--text); }
     .container { width: 90%; max-width: 480px; margin: auto; padding: 1rem; }
     .card { background: var(--card); padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-top: 2rem; }
-    /* Responsive group for passphrase and PIN */
     .credential-group { display: flex; flex-direction: column; gap: 0.5rem; }
     .credential-group input { flex: 1; }
     input { width: 100%; padding: 0.5rem; margin-bottom: 1rem; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem; }
@@ -41,16 +40,16 @@
 <body>
   <div id="login-screen" class="container card">
     <h2>Login</h2>
-    <!-- On utilise un formulaire pour la validation HTML5 -->
-    <form id="login-form" novalidate>
+    <form id="login-form">
       <div class="credential-group">
         <input type="password" id="passphrase" name="passphrase" placeholder="Passphrase" autocomplete="new-password" required>
         <input type="text" id="pin" name="pin" placeholder="PIN (min 4 chiffres)" inputmode="numeric" pattern="\d{4,}" minlength="4" required>
       </div>
-      <input type="text" id="username" name="username" placeholder="Username" autocomplete="username">
+      <input type="text" id="username" name="username" placeholder="Username" autocomplete="username" required>
       <button type="submit" id="btn-login">Login</button>
     </form>
   </div>
+
   <div id="app" class="container" hidden>
     <div class="card">
       <h2>Your Sites</h2>
@@ -58,19 +57,11 @@
       <ul id="site-list"></ul>
     </div>
   </div>
+
   <footer>
     <a href="#" id="reset-db-link">Reset database</a>
   </footer>
+
   <script src="app.js" defer></script>
-  <script>
-    // Validation côté client avant envoi
-    document.getElementById('login-form').addEventListener('submit', function(e) {
-      if (!this.checkValidity()) {
-        e.preventDefault();
-        this.reportValidity();
-      }
-      // sinon, laissez l'envoi se poursuivre (ou déclenchez votre logique de login)
-    });
-  </script>
 </body>
 </html>
