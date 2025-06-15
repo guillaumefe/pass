@@ -18,22 +18,8 @@
       .join('');
   }
 
-  async function deriveMasterKey(pass, user) {
-    const pin = document.getElementById('pin').value.trim();
-    const saltHex = pin ? await sha512(pass + pin) : await sha512(pass + user);
-    const saltBytes = hexToBytes(saltHex);
-    const { hash: derived } = await argon2.hash({
-      pass,
-      salt: saltBytes,
-      type: argon2.ArgonType.Argon2id,
-      hashLen: 64,
-      time: 3,
-      mem: 65536
-    });
-    return derived;
-  }
-
-  const workerCode = `
+  function createWorker() {
+    const workerCode = `
 importScripts('https://cdn.jsdelivr.net/npm/argon2-browser/dist/argon2-browser.min.js');
 const CHARSET = ${JSON.stringify(CHARSET)};
 function hexToBytes(hex) {
@@ -47,43 +33,74 @@ async function sha512(str) {
     .join('');
 }
 self.onmessage = async function(e) {
-  const { masterPass, user, pin, info, length } = e.data;
+  const { type, masterPass, user, pin, info, length } = e.data;
   if (!self.isSecureContext) return;
-  const saltHex = pin ? await sha512(masterPass + pin) : await sha512(masterPass + user);
-  const saltBytes = hexToBytes(saltHex);
-  const infoBytes = new TextEncoder().encode(info);
-  const combinedSalt = new Uint8Array(saltBytes.length + infoBytes.length);
-  combinedSalt.set(saltBytes, 0);
-  combinedSalt.set(infoBytes, saltBytes.length);
-  const { hash: derived } = await argon2.hash({
-    pass: masterPass,
-    salt: combinedSalt,
-    type: argon2.ArgonType.Argon2id,
-    hashLen: 64,
-    time: 3,
-    mem: 65536
-  });
-  const seedBytes = hexToBytes(derived);
-  const key = await crypto.subtle.importKey('raw', seedBytes, 'HKDF', false, ['deriveBits']);
-  const bits = await crypto.subtle.deriveBits(
-    { name: 'HKDF', hash: 'SHA-256', salt: combinedSalt, info: new TextEncoder().encode(info) },
-    key,
-    length * 8
-  );
-  const rawBytes = new Uint8Array(bits);
-  const threshold = Math.floor(256 / CHARSET.length) * CHARSET.length;
-  const pwdChars = [];
-  for (const b of rawBytes) {
-    if (b < threshold) {
-      pwdChars.push(CHARSET[b % CHARSET.length]);
-      if (pwdChars.length === length) break;
+  if (type === 'derive') {
+    const saltHex = pin ? await sha512(masterPass + pin) : await sha512(masterPass + user);
+    const saltBytes = hexToBytes(saltHex);
+    const { hash: derived } = await argon2.hash({
+      pass: masterPass,
+      salt: saltBytes,
+      type: argon2.ArgonType.Argon2id,
+      hashLen: 64,
+      time: 3,
+      mem: 65536
+    });
+    self.postMessage({ type: 'derived', derived });
+  } else if (type === 'generate') {
+    const saltHex = pin ? await sha512(masterPass + pin) : await sha512(masterPass + user);
+    const saltBytes = hexToBytes(saltHex);
+    const infoBytes = new TextEncoder().encode(info);
+    const combinedSalt = new Uint8Array(saltBytes.length + infoBytes.length);
+    combinedSalt.set(saltBytes, 0);
+    combinedSalt.set(infoBytes, saltBytes.length);
+    const { hash: derived } = await argon2.hash({
+      pass: masterPass,
+      salt: combinedSalt,
+      type: argon2.ArgonType.Argon2id,
+      hashLen: 64,
+      time: 3,
+      mem: 65536
+    });
+    const seedBytes = hexToBytes(derived);
+    const key = await crypto.subtle.importKey('raw', seedBytes, 'HKDF', false, ['deriveBits']);
+    const bits = await crypto.subtle.deriveBits(
+      { name: 'HKDF', hash: 'SHA-256', salt: combinedSalt, info: new TextEncoder().encode(info) },
+      key,
+      length * 8
+    );
+    const rawBytes = new Uint8Array(bits);
+    const threshold = Math.floor(256 / CHARSET.length) * CHARSET.length;
+    const pwdChars = [];
+    for (const b of rawBytes) {
+      if (b < threshold) {
+        pwdChars.push(CHARSET[b % CHARSET.length]);
+        if (pwdChars.length === length) break;
+      }
     }
+    const pwd = pwdChars.join('');
+    try {
+      await navigator.clipboard.writeText(pwd);
+      setTimeout(() => navigator.clipboard.writeText(''), 20000);
+    } catch {}
   }
-  const pwd = pwdChars.join('');
-  try { await navigator.clipboard.writeText(pwd); setTimeout(() => navigator.clipboard.writeText(''), 20000); } catch {}
 };`;
+    return new Worker(URL.createObjectURL(new Blob([workerCode], { type: 'application/javascript' })));
+  }
 
-  const pwdWorker = new Worker(URL.createObjectURL(new Blob([workerCode], { type: 'application/javascript' })));
+  const pwdWorker = createWorker();
+
+  async function deriveMasterKey(pass, user) {
+    return new Promise((resolve, reject) => {
+      const pin = document.getElementById('pin').value.trim();
+      pwdWorker.onmessage = function(e) {
+        if (e.data.type === 'derived') {
+          resolve(e.data.derived);
+        }
+      };
+      pwdWorker.postMessage({ type: 'derive', masterPass: pass, user, pin });
+    });
+  }
 
   async function openDB() {
     return new Promise((resolve, reject) => {
@@ -175,44 +192,42 @@ self.onmessage = async function(e) {
     const ul = document.getElementById('site-list');
     ul.textContent = '';
     for (const r of records) {
-      try {
-        const info = r.domain + (r.login || '') + (r.version || '');
-        const li = document.createElement('li');
-        const spanDomain = document.createElement('span');
-        spanDomain.className = 'domain';
-        spanDomain.textContent = r.domain;
-        li.appendChild(spanDomain);
-        if (r.login) {
-          const spanLogin = document.createElement('span');
-          spanLogin.className = 'login';
-          spanLogin.textContent = r.login;
-          li.appendChild(spanLogin);
-        }
-        const actions = document.createElement('div');
-        actions.className = 'actions';
-        const btnCopy = document.createElement('button');
-        btnCopy.className = 'copy';
-        btnCopy.textContent = 'Copy';
-        btnCopy.addEventListener('click', () => {
-          if (!location.protocol.startsWith('https:') || !document.hasFocus() || document.visibilityState !== 'visible') return;
-          const pin = document.getElementById('pin').value.trim();
-          pwdWorker.postMessage({ masterPass: masterKey, user: currentUser, pin, info, length: 20 });
-        });
-        const btnEdit = document.createElement('button');
-        btnEdit.className = 'edit';
-        btnEdit.textContent = 'Edit';
-        btnEdit.addEventListener('click', async () => {
-          const updated = await promptSite(r);
-          if (updated) { await saveSite(updated); renderList(await loadSites()); }
-        });
-        const btnDelete = document.createElement('button');
-        btnDelete.className = 'delete';
-        btnDelete.textContent = 'Delete';
-        btnDelete.addEventListener('click', async () => { await deleteSite(r.id); renderList(await loadSites()); });
-        actions.append(btnCopy, btnEdit, btnDelete);
-        li.appendChild(actions);
-        ul.appendChild(li);
-      } catch (e) {}
+      const info = r.domain + (r.login || '') + (r.version || '');
+      const li = document.createElement('li');
+      const spanDomain = document.createElement('span');
+      spanDomain.className = 'domain';
+      spanDomain.textContent = r.domain;
+      li.appendChild(spanDomain);
+      if (r.login) {
+        const spanLogin = document.createElement('span');
+        spanLogin.className = 'login';
+        spanLogin.textContent = r.login;
+        li.appendChild(spanLogin);
+      }
+      const actions = document.createElement('div');
+      actions.className = 'actions';
+      const btnCopy = document.createElement('button');
+      btnCopy.className = 'copy';
+      btnCopy.textContent = 'Copy';
+      btnCopy.addEventListener('click', () => {
+        if (!location.protocol.startsWith('https:') || !document.hasFocus() || document.visibilityState !== 'visible') return;
+        const pin = document.getElementById('pin').value.trim();
+        pwdWorker.postMessage({ type: 'generate', masterPass: masterKey, user: currentUser, pin, info, length: 20 });
+      });
+      const btnEdit = document.createElement('button');
+      btnEdit.className = 'edit';
+      btnEdit.textContent = 'Edit';
+      btnEdit.addEventListener('click', async () => {
+        const updated = await promptSite(r);
+        if (updated) { await saveSite(updated); renderList(await loadSites()); }
+      });
+      const btnDelete = document.createElement('button');
+      btnDelete.className = 'delete';
+      btnDelete.textContent = 'Delete';
+      btnDelete.addEventListener('click', async () => { await deleteSite(r.id); renderList(await loadSites()); });
+      actions.append(btnCopy, btnEdit, btnDelete);
+      li.appendChild(actions);
+      ul.appendChild(li);
     }
   }
 
@@ -252,41 +267,37 @@ self.onmessage = async function(e) {
     const pass = passElem.value;
     const user = userElem.value.trim();
     if (!pass || !user) return;
-    try {
-      masterKey = await deriveMasterKey(pass, user);
-      currentUser = user;
-      passElem.value = '';
-      userElem.value = '';
-      document.getElementById('login-screen').hidden = true;
-      document.getElementById('app').hidden = false;
-      db = await openDB();
-      await renderList(await loadSites());
-      document.getElementById('add-button').addEventListener('click', async () => {
-        const site = await promptSite();
-        if (site) { await saveSite(site); await renderList(await loadSites()); }
-      });
-      resetInactivityTimer();
-    } catch (e) {}
+    masterKey = await deriveMasterKey(pass, user);
+    currentUser = user;
+    passElem.value = '';
+    userElem.value = '';
+    document.getElementById('login-screen').hidden = true;
+    document.getElementById('app').hidden = false;
+    db = await openDB();
+    await renderList(await loadSites());
+    document.getElementById('add-button').addEventListener('click', async () => {
+      const site = await promptSite();
+      if (site) { await saveSite(site); await renderList(await loadSites()); }
+    });
+    resetInactivityTimer();
   });
 
   document.getElementById('reset-db-link').addEventListener('click', async e => {
     e.preventDefault();
     if (!confirm('Are you sure you want to reset all your data?')) return;
-    try {
-      if (db) { db.close(); db = null; }
-      await new Promise((resolve, reject) => {
-        const req = indexedDB.deleteDatabase('pwdManagerDB');
-        req.onblocked = () => {};
-        req.onerror = () => reject(req.error);
-        req.onsuccess = () => resolve();
-      });
-      localStorage.clear();
-      if ('serviceWorker' in navigator) {
-        const regs = await navigator.serviceWorker.getRegistrations();
-        await Promise.all(regs.map(r => r.unregister()));
-      }
-      window.location.reload();
-    } catch (e) {}
+    if (db) { db.close(); db = null; }
+    await new Promise((resolve, reject) => {
+      const req = indexedDB.deleteDatabase('pwdManagerDB');
+      req.onblocked = () => {};
+      req.onerror = () => reject(req.error);
+      req.onsuccess = () => resolve();
+    });
+    localStorage.clear();
+    if ('serviceWorker' in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(r => r.unregister()));
+    }
+    window.location.reload();
   });
 
   if ('serviceWorker' in navigator) {
