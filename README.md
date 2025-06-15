@@ -1,0 +1,2 @@
+# pass
+Offline password manager
