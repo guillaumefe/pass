@@ -1,6 +1,6 @@
 (() => {
   const CHARSET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()-_=+[]{};:,.<>?'.split('');
-  const INACTIVITY_LIMIT = 5 * 60 * 1000;
+  const INACTIVITY_LIMIT = 1.5 * 60 * 1000;
   let currentUser = null;
   let masterKey = null;
   let db = null;
@@ -18,53 +18,76 @@
       .join('');
   }
 
+  function sanitize(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
   async function deriveMasterKey(pass, user) {
-    const enc = new TextEncoder();
-    const keyMaterial = await crypto.subtle.importKey(
-      'raw',
-      enc.encode(pass),
-      { name: 'PBKDF2' },
-      false,
-      ['deriveBits']
-    );
-    const salt = enc.encode(user);
-    const bits = await crypto.subtle.deriveBits(
-      { name: 'PBKDF2', hash: 'SHA-512', salt: salt, iterations: 200000 },
-      keyMaterial,
-      512
-    );
-    return Array.from(new Uint8Array(bits))
-      .map(b => b.toString(16).padStart(2, '0'))
-      .join('');
+    const pin = document.getElementById('pin').value.trim();
+    const saltHex = pin ? await sha512(pass + pin) : await sha512(pass + user);
+    const saltBytes = hexToBytes(saltHex);
+    const { hash: derived } = await argon2.hash({
+      pass,
+      salt: saltBytes,
+      type: argon2.ArgonType.Argon2id,
+      hashLen: 64,
+      time: 3,
+      mem: 65536
+    });
+    return derived;
   }
 
-  async function derivePasswordBytes(seedBytes, info, length) {
-    const key = await crypto.subtle.importKey('raw', seedBytes, 'HKDF', false, ['deriveBits']);
-    const saltBuf = new TextEncoder().encode(currentUser);
-    const infoBuf = new TextEncoder().encode(info);
-    const bits = await crypto.subtle.deriveBits(
-      { name: 'HKDF', hash: 'SHA-256', salt: saltBuf, info: infoBuf },
-      key,
-      length * 8
-    );
-    return new Uint8Array(bits);
-  }
-
-  async function generatePassword(seedBytes, info, length) {
-    const rawBytes = await derivePasswordBytes(seedBytes, info, length * 4);
-    const threshold = Math.floor(256 / CHARSET.length) * CHARSET.length;
-    const pwdChars = [];
-    for (const b of rawBytes) {
-      if (b < threshold) {
-        pwdChars.push(CHARSET[b % CHARSET.length]);
-        if (pwdChars.length === length) break;
-      }
+  const workerCode = `
+importScripts('https://cdn.jsdelivr.net/npm/argon2-browser/dist/argon2-browser.min.js');
+const CHARSET = ${JSON.stringify(CHARSET)};
+function hexToBytes(hex) {
+  return new Uint8Array(hex.match(/.{2}/g).map(b => parseInt(b, 16)));
+}
+async function sha512(str) {
+  const buf = new TextEncoder().encode(str);
+  const hash = await crypto.subtle.digest('SHA-512', buf);
+  return Array.from(new Uint8Array(hash))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
+}
+self.onmessage = async function(e) {
+  const { masterPass, user, pin, info, length } = e.data;
+  if (!self.isSecureContext) return;
+  const saltHex = pin ? await sha512(masterPass + pin) : await sha512(masterPass + user);
+  const saltBytes = hexToBytes(saltHex + info);
+  const { hash: derived } = await argon2.hash({
+    pass: masterPass,
+    salt: saltBytes,
+    type: argon2.ArgonType.Argon2id,
+    hashLen: 64,
+    time: 3,
+    mem: 65536
+  });
+  const seedBytes = hexToBytes(derived);
+  const key = await crypto.subtle.importKey('raw', seedBytes, 'HKDF', false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits(
+    { name: 'HKDF', hash: 'SHA-256', salt: saltBytes, info: new TextEncoder().encode(info) },
+    key,
+    length * 8
+  );
+  const rawBytes = new Uint8Array(bits);
+  const threshold = Math.floor(256 / CHARSET.length) * CHARSET.length;
+  const pwdChars = [];
+  for (const b of rawBytes) {
+    if (b < threshold) {
+      pwdChars.push(CHARSET[b % CHARSET.length]);
+      if (pwdChars.length === length) break;
     }
-    if (pwdChars.length < length) throw new Error('Not enough entropy to generate the password');
-    return pwdChars.join('');
   }
+  const pwd = pwdChars.join('');
+  try { await navigator.clipboard.writeText(pwd); setTimeout(() => navigator.clipboard.writeText(''), 20000); } catch {}
+};`;
 
-  function openDB() {
+  const pwdWorker = new Worker(URL.createObjectURL(new Blob([workerCode], { type: 'application/javascript' })));
+
+  async function openDB() {
     return new Promise((resolve, reject) => {
       const req = indexedDB.open('pwdManagerDB', 1);
       req.onupgradeneeded = e => {
@@ -155,75 +178,43 @@
     ul.textContent = '';
     for (const r of records) {
       try {
-        const seedHex = await sha512(masterKey + currentUser + r.domain + (r.login || '') + (r.version || ''));
-        const seedBytes = hexToBytes(seedHex);
         const info = r.domain + (r.login || '') + (r.version || '');
-        const pwd = await generatePassword(seedBytes, info, 20);
         const li = document.createElement('li');
         const spanDomain = document.createElement('span');
         spanDomain.className = 'domain';
-        spanDomain.textContent = r.domain;
+        spanDomain.innerHTML = sanitize(r.domain);
         li.appendChild(spanDomain);
         if (r.login) {
           const spanLogin = document.createElement('span');
           spanLogin.className = 'login';
-          spanLogin.textContent = 'Login: ' + r.login;
+          spanLogin.innerHTML = sanitize(r.login);
           li.appendChild(spanLogin);
         }
-        const spanPwd = document.createElement('span');
-        spanPwd.className = 'pwd';
-        spanPwd.textContent = pwd;
-        li.appendChild(spanPwd);
         const actions = document.createElement('div');
         actions.className = 'actions';
         const btnCopy = document.createElement('button');
         btnCopy.className = 'copy';
         btnCopy.textContent = 'Copy';
-        btnCopy.addEventListener('click', async () => {
-          try {
-            await navigator.clipboard.writeText(pwd);
-            if ('Notification' in window) {
-              if (Notification.permission === 'granted') {
-                new Notification('Password copied', { body: 'It will be cleared from the clipboard in 20 seconds.' });
-              } else if (Notification.permission !== 'denied') {
-                try {
-                  const permission = await Notification.requestPermission();
-                  if (permission === 'granted') {
-                    new Notification('Password copied', { body: 'It will be cleared from the clipboard in 20 seconds.' });
-                  }
-                } catch (e) {}
-              }
-            } else {
-              alert('🔒 Password copied! It will be cleared from the clipboard in 20 seconds.');
-            }
-            setTimeout(async () => {
-              try { await navigator.clipboard.writeText(''); } catch (e) {}
-            }, 20000);
-          } catch (e) {
-            alert('Could not copy password: ' + e.message);
-          }
+        btnCopy.addEventListener('click', () => {
+          if (!location.protocol.startsWith('https:') || !document.hasFocus() || document.visibilityState !== 'visible') return;
+          const pin = document.getElementById('pin').value.trim();
+          pwdWorker.postMessage({ masterPass: masterKey, user: currentUser, pin, info, length: 20 });
         });
         const btnEdit = document.createElement('button');
         btnEdit.className = 'edit';
         btnEdit.textContent = 'Edit';
         btnEdit.addEventListener('click', async () => {
-          try {
-            const updated = await promptSite(r);
-            if (updated) { await saveSite(updated); renderList(await loadSites()); }
-          } catch (e) {}
+          const updated = await promptSite(r);
+          if (updated) { await saveSite(updated); renderList(await loadSites()); }
         });
         const btnDelete = document.createElement('button');
         btnDelete.className = 'delete';
         btnDelete.textContent = 'Delete';
-        btnDelete.addEventListener('click', async () => {
-          try { await deleteSite(r.id); renderList(await loadSites()); } catch (e) {}
-        });
+        btnDelete.addEventListener('click', async () => { await deleteSite(r.id); renderList(await loadSites()); });
         actions.append(btnCopy, btnEdit, btnDelete);
         li.appendChild(actions);
         ul.appendChild(li);
-      } catch (e) {
-        console.error('Error rendering site', r.id, e);
-      }
+      } catch (e) {}
     }
   }
 
@@ -232,11 +223,7 @@
       const tx = db.transaction('sites', 'readwrite');
       const store = tx.objectStore('sites');
       const record = { domain: site.domain, login: site.login, version: site.version };
-      if (typeof site.id === 'number') {
-        store.put({ id: site.id, ...record });
-      } else {
-        store.add(record);
-      }
+      if (typeof site.id === 'number') store.put({ id: site.id, ...record }); else store.add(record);
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
     });
@@ -249,7 +236,7 @@
     document.getElementById('app').hidden = true;
     document.getElementById('login-screen').hidden = false;
     const ul = document.getElementById('site-list');
-    if (ul) { ul.textContent = ''; }
+    if (ul) ul.textContent = '';
     alert('Session expired, please log in again.');
   }
 
@@ -277,15 +264,11 @@
       db = await openDB();
       await renderList(await loadSites());
       document.getElementById('add-button').addEventListener('click', async () => {
-        try {
-          const site = await promptSite();
-          if (site) { await saveSite(site); await renderList(await loadSites()); }
-        } catch (e) { alert('Error adding site: ' + e.message); }
+        const site = await promptSite();
+        if (site) { await saveSite(site); await renderList(await loadSites()); }
       });
       resetInactivityTimer();
-    } catch (e) {
-      alert('Login failed: ' + e.message);
-    }
+    } catch (e) {}
   });
 
   document.getElementById('reset-db-link').addEventListener('click', async e => {
@@ -295,7 +278,7 @@
       if (db) { db.close(); db = null; }
       await new Promise((resolve, reject) => {
         const req = indexedDB.deleteDatabase('pwdManagerDB');
-        req.onblocked = () => console.warn('Please close other tabs using the database.');
+        req.onblocked = () => {};
         req.onerror = () => reject(req.error);
         req.onsuccess = () => resolve();
       });
@@ -305,10 +288,7 @@
         await Promise.all(regs.map(r => r.unregister()));
       }
       window.location.reload();
-    } catch (e) {
-      console.error('Database reset error', e);
-      alert('Reset failed: ' + e.message);
-    }
+    } catch (e) {}
   });
 
   if ('serviceWorker' in navigator) {
