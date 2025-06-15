@@ -15,7 +15,7 @@
     input { width: 100%; padding: 0.5rem; margin-bottom: 1rem; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem; }
     button { width: 100%; padding: 0.75rem; border: none; border-radius: 4px; background: var(--primary); color: #fff; font-size: 1rem; cursor: pointer; }
     button:hover { background: #303f9f; }
-    #add-button, #reset-db-button { margin-bottom: 1rem; }
+    #add-button { margin-bottom: 1rem; }
     ul { list-style: none; padding: 0; margin: 0; }
     li { display: flex; flex-direction: column; background: #fafafa; margin-bottom: 0.5rem; padding: 0.75rem; border: 1px solid var(--border); border-radius: 4px; word-break: break-all; }
     li .actions { margin-top: 0.5rem; display: flex; gap: 0.5rem; }
@@ -26,6 +26,9 @@
     .modal-actions { display: flex; gap: 0.5rem; }
     .modal-actions button { flex: 1; }
     @media (min-width: 600px) { .card { margin-top: 3rem; } button { max-width: 200px; margin-left: auto; } }
+    footer { text-align: center; padding: 0.5rem; font-size: 0.8rem; }
+    footer a { color: var(--primary); text-decoration: none; opacity: 0.7; }
+    footer a:hover { opacity: 1; }
   </style>
 </head>
 <body>
@@ -39,10 +42,12 @@
     <div class="card">
       <h2>Your Sites</h2>
       <button id="add-button">Add Site</button>
-      <button id="reset-db-button">Reset Database</button>
       <ul id="site-list"></ul>
     </div>
   </div>
+  <footer>
+    <a href="#" id="reset-db-link">Réinitialiser les données</a>
+  </footer>
   <script src="app.js" defer></script>
 </body>
 </html>
