@@ -191,6 +191,25 @@
       btnCopy.textContent = 'Copy';
       btnCopy.addEventListener('click', () => {
         navigator.clipboard.writeText(pwd).then(() => {
+          // request permission if needed
+          if ('Notification' in window) {
+            if (Notification.permission === 'granted') {
+              new Notification('Password copied', {
+                body: 'It will be cleared from the clipboard in 20 seconds.'
+              });
+            } else if (Notification.permission !== 'denied') {
+              Notification.requestPermission().then(permission => {
+                if (permission === 'granted') {
+                  new Notification('Password copied', {
+                    body: 'It will be cleared from the clipboard in 20 seconds.'
+                  });
+                }
+              });
+            }
+          } else {
+            // fallback if Notification API is not available
+            alert('🔒 Password copied! It will be cleared from the clipboard in 20 seconds.');
+          }
           setTimeout(() => navigator.clipboard.writeText(''), 20000);
         });
       });
