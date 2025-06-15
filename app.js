@@ -9,7 +9,7 @@
   };
   let inactivityTimeout;
 
-  // --- UTILITAIRES CRYPTO ---
+  // --- CRYPTO UTILITIES ---
   function hexToBytes(hex) {
     return new Uint8Array(hex.match(/.{2}/g).map(b => parseInt(b, 16)));
   }
@@ -22,7 +22,7 @@
       .join('');
   }
 
-  // HKDF avec salt = pseudo (session.user)
+  // HKDF with salt = username (session.user)
   async function derivePasswordBytes(seedBytes, info, length) {
     const key = await crypto.subtle.importKey(
       'raw', seedBytes, 'HKDF', false, ['deriveBits']
@@ -37,9 +37,9 @@
     return new Uint8Array(bits);
   }
 
-  // Génère un mot de passe de 'length' caractères avec rejet statistique
+  // Generates a 'length'-character password with rejection sampling
   async function generatePassword(seedBytes, info, length) {
-    // On génère 4× plus d’octets pour compenser les rejets
+    // Generate 4× more bytes to compensate for rejections
     const rawBytes = await derivePasswordBytes(seedBytes, info, length * 4);
     const threshold = Math.floor(256 / CHARSET.length) * CHARSET.length;
     const pwdChars = [];
@@ -50,12 +50,12 @@
       }
     }
     if (pwdChars.length < length) {
-      throw new Error('Pas assez d’entropie pour générer le mot de passe');
+      throw new Error('Not enough entropy to generate the password');
     }
     return pwdChars.join('');
   }
 
-  // --- BASE DE DONNÉES INDEXEDDB ---
+  // --- INDEXEDDB DATABASE ---
   function openDB() {
     return new Promise((resolve, reject) => {
       const req = indexedDB.open('pwdManagerDB', 1);
@@ -87,7 +87,7 @@
     });
   }
 
-  // --- INTERFACE MODALE POUR AJOUT/ÉDITION ---
+  // --- MODAL INTERFACE FOR ADD/EDIT ---
   function promptSite(existing) {
     return new Promise(res => {
       const modal = document.createElement('div');
@@ -152,12 +152,12 @@
     });
   }
 
-  // --- RENDU DE LA LISTE ---
+  // --- LIST RENDERING ---
   async function renderList(records) {
     const ul = document.getElementById('site-list');
     ul.textContent = '';
     for (const r of records) {
-      // derive seedHex avec passHash + pseudo + domain/login/version
+      // derive seedHex with passHash + username + domain/login/version
       const seedHex = await sha512(
         session.passHash + session.user + r.domain + (r.login || '') + (r.version || '')
       );
@@ -240,7 +240,7 @@
     }
   }
 
-  // --- SAUVEGARDE ---
+  // --- SAVE FUNCTION ---
   async function saveSite(site) {
     return new Promise((resolve, reject) => {
       const tx = session.db.transaction('sites', 'readwrite');
@@ -256,14 +256,14 @@
     });
   }
 
-  // --- VERROUILLAGE SUR INACTIVITÉ ---
+  // --- LOCK ON INACTIVITY ---
   function lock() {
     session.passHash = null;
     session.user = null;
     clearTimeout(inactivityTimeout);
     document.getElementById('app').hidden = true;
     document.getElementById('login-screen').hidden = false;
-    alert('Session expirée, veuillez vous reconnecter.');
+    alert('Session expired, please log in again.');
   }
 
   function resetInactivityTimer() {
@@ -274,7 +274,7 @@
   document.addEventListener('click', resetInactivityTimer);
   document.addEventListener('keydown', resetInactivityTimer);
 
-  // --- GESTION DU LOGIN ---
+  // --- LOGIN HANDLING ---
   document.getElementById('btn-login').addEventListener('click', async () => {
     const pass = document.getElementById('passphrase').value;
     const user = document.getElementById('username').value.trim();
@@ -288,11 +288,20 @@
     document.getElementById('app').hidden = false;
 
     session.db = await openDB();
-    renderList(await loadSites());
+    await renderList(await loadSites());
+    document.getElementById('add-button').addEventListener('click', async () => {
+      // open the modal to create a new site
+      const site = await promptSite();
+      if (!site) return;             // if the user cancels
+      await saveSite(site);           
+      const all = await loadSites(); 
+      await renderList(all);          // re-render the list with all sites
+    });
+
     resetInactivityTimer();
   });
 
-  // --- RESET BDD ---
+  // --- DATABASE RESET ---
   document.getElementById('reset-db-link').addEventListener('click', e => {
     e.preventDefault();
     if (!confirm('Are you sure you want to reset all your data?')) return;
@@ -310,7 +319,7 @@
     };
   });
 
-  // --- ENREGISTREMENT DU SERVICE WORKER ---
+  // --- SERVICE WORKER REGISTRATION ---
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js');
   }
