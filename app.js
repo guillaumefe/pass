@@ -227,16 +227,17 @@ async function renderList(records) {
   }
 }
 
-document.getElementById('reset-db-button').addEventListener('click', async () => {
-  if (!confirm('Voulez-vous vraiment réinitialiser la base de données ? Toutes vos données seront perdues.')) return;
+document.getElementById('reset-db-link').addEventListener('click', async e => {
+  e.preventDefault();
+  if (!confirm('Confirmez-vous la réinitialisation de toutes vos données ?')) return;
   await new Promise((resolve, reject) => {
     const req = indexedDB.deleteDatabase('pwdManagerDB');
     req.onsuccess = () => resolve();
     req.onerror   = () => reject(req.error);
-    req.onblocked = () => {/* suppression bloquée */};
+    req.onblocked = () => {/* bloqué */};
   });
-  db = await openDB();
-  renderList(await loadSites());
+  localStorage.clear();
+  location.reload();
 });
 
 if ('serviceWorker' in navigator) {
