@@ -229,7 +229,7 @@ async function renderList(records) {
 
 document.getElementById('reset-db-link').addEventListener('click', async e => {
   e.preventDefault();
-  if (!confirm('Confirmez-vous la réinitialisation de toutes vos données ?')) return;
+  if (!confirm('Are you sure you want to reset all your data ?')) return;
   await new Promise((resolve, reject) => {
     const req = indexedDB.deleteDatabase('pwdManagerDB');
     req.onsuccess = () => resolve();
