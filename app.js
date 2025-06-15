@@ -20,7 +20,7 @@
 
   function createWorker() {
     const workerCode = `
-importScripts('https://cdn.jsdelivr.net/npm/argon2-browser/dist/argon2-browser.min.js');
+importScripts('/argon2-bundled.min.js');
 const CHARSET = ${JSON.stringify(CHARSET)};
 function hexToBytes(hex) {
   return new Uint8Array(hex.match(/.{2}/g).map(b => parseInt(b, 16)));
