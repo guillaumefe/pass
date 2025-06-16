@@ -5,7 +5,6 @@ const ASSETS = [
   './styles.css',
   './dist/app.bundle.js',
   './dist/worker.bundle.js',
-  './dist/779899593945a295.wasm',  // ← ton fichier wasm
   './manifest.json',
   './sw.js'
 ];
