@@ -530,7 +530,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
   if (!pass || !user) return;
 
-  masterKey = await deriveMasterKey(pass, user, pin);
+  masterKey = deriveMasterKey(pass, user, pin);
   currentUser = user;
 
   passElem.value = '';
