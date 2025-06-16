@@ -1,19 +1,26 @@
 {
   "name": "pass",
+  "homepage": "https://guillaumefe.github.io/pass",
   "version": "1.0.0",
   "description": "Offline password manager",
   "main": "app.js",
   "scripts": {
+    "clean": "rm -rf dist build",
     "build:worker": "rollup -c rollup.config.mjs",
-    "build": "npm run clean && npm run build:worker"
+    "build": "npm run clean && npm run build:worker",
+    "serve": "serve -s dist",
+    "start": "npm run build && npm run serve",
+    "predeploy": "npm run build",
+    "deploy":   "gh-pages -d dist"
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "GPL-3.0-or-later",
   "devDependencies": {
     "@rollup/plugin-commonjs": "^28.0.5",
     "@rollup/plugin-node-resolve": "^16.0.1",
     "@rollup/plugin-wasm": "^6.2.2",
+    "gh-pages": "^6.3.0",
     "rollup": "^4.43.0"
   },
   "dependencies": {
