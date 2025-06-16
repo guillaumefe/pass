@@ -1,0 +1,41 @@
+# Node.js dependencies
+node_modules/
+
+# Lock files
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Sources à exclure du dépôt
+/src/
+worker-entry.js
+dump.sh
+
+# Binaires non utilisés
+argon2-bundled.min.js
+
+# Artifacts de build
+/dist/
+/build/
+
+# Configs de bundler
+rollup.config.js
+rollup.config.mjs
+vite.config.js
+vite.config.mjs
+*.config.js
+*.config.mjs
+*.rc.js
+
+# Fichiers système
+.DS_Store
+Thumbs.db
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Coverage
+coverage/
+

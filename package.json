@@ -1,0 +1,24 @@
+{
+  "name": "pass",
+  "version": "1.0.0",
+  "description": "Offline password manager",
+  "main": "app.js",
+  "scripts": {
+    "clean": "rm -rf dist build",
+    "build:worker": "rollup -c rollup.config.mjs",
+    "build": "npm run clean && npm run build:worker"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^28.0.5",
+    "@rollup/plugin-node-resolve": "^16.0.1",
+    "@rollup/plugin-wasm": "^6.2.2",
+    "rollup": "^4.43.0"
+  },
+  "dependencies": {
+    "argon2-browser": "^1.18.0"
+  }
+}
+
