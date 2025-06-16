@@ -7,13 +7,8 @@ yarn.lock
 pnpm-lock.yaml
 
 # Sources à exclure du dépôt
-/src/
-worker-entry.js
 dump.sh
 output.txt
-
-# Binaires non utilisés
-argon2-bundled.min.js
 
 # Artifacts de build
 /dist/
