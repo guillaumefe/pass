@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy"
+      content="
+        default-src 'self';
+        script-src  'self';
+        worker-src  'self';
+        style-src   'self';
+        connect-src 'self';
+        img-src     'self' data:;
+        font-src    'self';
+        frame-ancestors 'none';
+        base-uri    'self';
+        form-action 'self';
+        manifest-src 'self';
+      ">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Password Manager PWA</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div id="login-screen" class="container card">
+    <h2>Login</h2>
+    <form id="login-form" method="POST">
+      <div class="credential-group">
+        <input type="password" id="passphrase" name="passphrase" placeholder="Passphrase" autocomplete="new-password" required>
+        <input type="text" id="pin" name="pin" placeholder="PIN (min 4 chiffres)" inputmode="numeric" pattern="\d{4,}" minlength="4" required>
+      </div>
+      <input type="text" id="username" name="username" placeholder="Username" autocomplete="username" required>
+      <button type="submit" id="btn-login">Login</button>
+    </form>
+  </div>
+
+  <div id="app" class="container" hidden>
+    <div class="card">
+      <h2>Your Passwords</h2>
+      <button id="add-button" disabled>
+        <span id="add-text">Add Password</span>
+        <span id="add-spinner" class="spinner" aria-hidden="true" hidden></span>
+      </button>
+      <ul id="site-list"></ul>
+    </div>
+  </div>
+
+  <footer>
+    <a href="#" id="reset-db-link">Reset database</a>
+    <span id="reset-clip" hidden>
+	<span> | </span>
+    	<a href="#" id="reset-clip-link">Reset clipboard</a>
+    </span>
+  </footer>
+
+  <div id="toast-container"></div>
+
+  <script type="module" src="dist/app.bundle.js" defer></script>
+</body>
+</html>
