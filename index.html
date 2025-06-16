@@ -24,11 +24,11 @@
   <div id="login-screen" class="container card">
     <h2>Login</h2>
     <form id="login-form">
+      <input type="text" id="username" name="username" placeholder="Username" autocomplete="username" required>
       <div class="credential-group">
-        <input type="password" id="passphrase" name="passphrase" placeholder="Passphrase" autocomplete="new-password" required>
+        <input type="password" id="passphrase" name="passphrase" placeholder="Passphrase" autocomplete="password" required>
         <input type="text" id="pin" name="pin" placeholder="PIN (min 4 chiffres)" autocomplete="one-time-code" inputmode="numeric" pattern="\d{4,}" minlength="4" required>
       </div>
-      <input type="text" id="username" name="username" placeholder="Username" autocomplete="username" required>
       <button type="submit" id="btn-login">Login</button>
     </form>
   </div>
