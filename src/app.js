@@ -69,7 +69,6 @@ pwdWorker.addEventListener('messageerror', e => {
   console.error('⚠️ Worker message parsing error:', e);
 });
 pwdWorker.onmessage = e => {
-  console.log('✔️ message from worker', e.data);
   if (e.data.type === 'generated') {
     const { info, password } = e.data;
 
