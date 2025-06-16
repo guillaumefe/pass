@@ -19,41 +19,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Password Manager PWA</title>
   <link rel="manifest" href="manifest.json">
-  <style>
-    :root { --primary: #3f51b5; --bg: #f5f5f5; --card: #ffffff; --text: #333333; --border: #e0e0e0; }
-    *, *::before, *::after { box-sizing: border-box; }
-    body { margin: 0; padding: 0; font-family: sans-serif; background: var(--bg); color: var(--text); }
-    .container { width: 90%; max-width: 480px; margin: auto; padding: 1rem; }
-    .card { background: var(--card); padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-top: 2rem; }
-    .credential-group { display: flex; flex-direction: column; gap: 0.5rem; }
-    .credential-group input { flex: 1; }
-    input { width: 100%; padding: 0.5rem; margin-bottom: 1rem; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem; }
-    button { width: 100%; padding: 0.75rem; border: none; border-radius: 4px; background: var(--primary); color: #fff; font-size: 1rem; cursor: pointer; }
-    button:hover { background: #303f9f; }
-    #add-button { margin-bottom: 1rem; }
-    ul { list-style: none; padding: 0; margin: 0; }
-    li { display: flex; flex-direction: column; background: #fafafa; margin-bottom: 0.5rem; padding: 0.75rem; border: 1px solid var(--border); border-radius: 4px; word-break: break-all; }
-    li .actions { margin-top: 0.5rem; display: flex; gap: 0.5rem; }
-    li .actions button { flex: 1; padding: 0.5rem; font-size: 0.9rem; }
-    .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; padding: 1rem; }
-    .modal-content { background: var(--card); padding: 1rem; border-radius: 8px; width: 100%; max-width: 360px; }
-    .modal-content input { margin-bottom: 0.75rem; width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px; }
-    .modal-actions { display: flex; gap: 0.5rem; }
-    .modal-actions button { flex: 1; }
-    @media (min-width: 600px) {
-      .card { margin-top: 3rem; }
-      button { max-width: 200px; margin-left: auto; }
-      .credential-group { flex-direction: row; }
-    }
-    footer { text-align: center; padding: 0.5rem; font-size: 0.8rem; }
-    footer a { color: var(--primary); text-decoration: none; opacity: 0.7; }
-    footer a:hover { opacity: 1; }
-  </style>
+  <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
   <div id="login-screen" class="container card">
     <h2>Login</h2>
-    <form id="login-form">
+    <form id="login-form" method="POST">
       <div class="credential-group">
         <input type="password" id="passphrase" name="passphrase" placeholder="Passphrase" autocomplete="new-password" required>
         <input type="text" id="pin" name="pin" placeholder="PIN (min 4 chiffres)" inputmode="numeric" pattern="\d{4,}" minlength="4" required>
@@ -65,16 +36,25 @@
 
   <div id="app" class="container" hidden>
     <div class="card">
-      <h2>Your Sites</h2>
-      <button id="add-button">Add Site</button>
+      <h2>Your Passwords</h2>
+      <button id="add-button" disabled>
+        <span id="add-text">Add Password</span>
+        <span id="add-spinner" class="spinner" aria-hidden="true" hidden></span>
+      </button>
       <ul id="site-list"></ul>
     </div>
   </div>
 
   <footer>
     <a href="#" id="reset-db-link">Reset database</a>
+    <span id="reset-clip" hidden>
+	<span> | </span>
+    	<a href="#" id="reset-clip-link">Reset clipboard</a>
+    </span>
   </footer>
 
-  <script src="app.js" defer></script>
+  <div id="toast-container"></div>
+
+  <script type="module" src="dist/app.bundle.js" defer></script>
 </body>
 </html>
