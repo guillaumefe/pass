@@ -69,7 +69,6 @@ pwdWorker.addEventListener('messageerror', e => {
   console.error('⚠️ Worker message parsing error:', e);
 });
 pwdWorker.onmessage = e => {
-  console.log('✔️ message from worker', e.data);
   if (e.data.type === 'generated') {
     const { info, password } = e.data;
 
@@ -505,21 +504,22 @@ function lock() {
   document.addEventListener('click', resetInactivityTimer);
   document.addEventListener('keydown', resetInactivityTimer);
 
-window.addEventListener('DOMContentLoaded', () => {
-  e.preventDefault();
+window.addEventListener('DOMContentLoaded', async (e) => {
 
   const form = document.getElementById('login-form');
+
   if (!form) {
     console.error('❌ #login-form non trouvé');
     return;
   }
 
+  form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+
   if (!form.checkValidity()) {
     form.reportValidity();
     return;
   }
-
-  form.addEventListener('submit', e => {
 
   const passElem = document.getElementById('passphrase');
   const userElem = document.getElementById('username');

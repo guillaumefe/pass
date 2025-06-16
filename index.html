@@ -11,7 +11,6 @@
         connect-src 'self';
         img-src     'self' data:;
         font-src    'self';
-        frame-ancestors 'none';
         base-uri    'self';
         form-action 'self';
         manifest-src 'self';
@@ -25,11 +24,11 @@
   <div id="login-screen" class="container card">
     <h2>Login</h2>
     <form id="login-form" method="POST">
+      <input type="text" id="username" name="username" placeholder="Username" autocomplete="username" required>
       <div class="credential-group">
         <input type="password" id="passphrase" name="passphrase" placeholder="Passphrase" autocomplete="new-password" required>
         <input type="text" id="pin" name="pin" placeholder="PIN (min 4 chiffres)" inputmode="numeric" pattern="\d{4,}" minlength="4" required>
       </div>
-      <input type="text" id="username" name="username" placeholder="Username" autocomplete="username" required>
       <button type="submit" id="btn-login">Login</button>
     </form>
   </div>
