@@ -18,6 +18,7 @@ async function sha512(str) {
 }
 
 self.onmessage = async e => {
+  console.log('[Worker] got message →', e.data);
   try {
     const { type, masterPass, user, pin, info, length } = e.data;
     if (!self.isSecureContext) {
@@ -92,6 +93,7 @@ self.onmessage = async e => {
 
 const password = pwd.join('');
 
+      console.log('[Worker] generated', { info, password });
       self.postMessage({ type: 'generated', info, password });
     }
   } catch (err) {
