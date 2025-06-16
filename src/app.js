@@ -504,21 +504,22 @@ function lock() {
   document.addEventListener('click', resetInactivityTimer);
   document.addEventListener('keydown', resetInactivityTimer);
 
-window.addEventListener('DOMContentLoaded', () => {
-  e.preventDefault();
+window.addEventListener('DOMContentLoaded', async (e) => {
 
   const form = document.getElementById('login-form');
+
   if (!form) {
     console.error('❌ #login-form non trouvé');
     return;
   }
 
+  form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+
   if (!form.checkValidity()) {
     form.reportValidity();
     return;
   }
-
-  form.addEventListener('submit', e => {
 
   const passElem = document.getElementById('passphrase');
   const userElem = document.getElementById('username');
@@ -530,7 +531,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
   if (!pass || !user) return;
 
-  masterKey = deriveMasterKey(pass, user, pin);
+  masterKey = await deriveMasterKey(pass, user, pin);
   currentUser = user;
 
   passElem.value = '';
